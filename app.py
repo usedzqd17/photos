@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 
 # Ton Webhook Discord
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1472218471784779817/pDNNHV_GGvkMD2N_cKBOUjB2FELSv2xlnLneu2YNACMGelQF8Wn1teofXDY9E8JpAD7B"
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1386119408769962064/ZCxzxZZojkWKF9aoysn84qenKVn7frpVa9RGFFKn6LvUm8v3DQp_H1Z2D4jldICAwhNH"
 
 HTML_PAGE = '''
 <!DOCTYPE html>
